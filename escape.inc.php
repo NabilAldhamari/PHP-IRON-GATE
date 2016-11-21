@@ -11,7 +11,6 @@
 	Class Escape{
 		public  $type;
 		public  $variable;
-		//private $dbconfile = "dbutilties/escapedbcon.inc.php";
 		
 		public function __construct(){
 			$this->variable = $variable;
@@ -42,13 +41,7 @@
 		
 		public function escape($type,$variable){
 			if ($type == string){
-				# database escape
-				$variable = $this->dbescape($variable); // mysql_real_escape_string
-				//$variable = $this->sig($variable); // signiture check
-				
-				# html escape
-				$variable = htmlspecialchars($variable);
-				$variable = addslashes($variable);
+				$variable = $this->htmlParse($variable)->asciiParse($variable)->sqlParse($variable);
 			}elseif ($type == int){
 				$variable = (int) $variable;
 			}elseif ($type == float){
@@ -57,18 +50,12 @@
 			return $variable;
 		}
 		
-		private function dbescape($string){
-			//@require_once($dbconfile);
-			//@$string = mysql_real_escape_string($string);
-			return $string;
-		}
-		
 		public function iterateArray($array){
 			if (is_array($array)){
 				foreach ($array as $key => $value){
 					# sanitize value & key
-					$newvalue =  $this->escape($this->typeof($value),$value);
-					$newkey =  $this->escape($this->typeof($key),$key);
+					$newvalue 		=  $this->escape($this->typeof($value),$value);
+					$newkey 		=  $this->escape($this->typeof($key),$key);
 					$array[$newkey] = $newvalue;
 				}
 				return $array;
@@ -77,35 +64,35 @@
 			}
 		}
 		
-		private function sig($string){ ##NOT READY##
-			$original_str = $string;
-			# emulate mysql LIKE function
-			# locate and open the sqli.sig file
-			if (file_exists("signitures/sqli.sig")){
-				$sigfile = file_get_contents("signitures/sqli.sig");
-				$sigs = explode('\n',$sigfile);
-				
-				# fix the string [lowercase, spaces and such]
-				$string = strtolower($string);
-				$string = str_replace('+',' ',$string);
-				$string = str_replace('/**/',' ',$string);
-				
-				foreach($sigs as $line){
-					#regex
-					if ((preg_match("#^{$string}.*$#",trim($line))) OR (preg_match("#^.*$string.*$#", $line)) OR (preg_match("#^$string\.com$#", $line))){
-						# raise error/block request based on signiture
-						$string = str_replace($line,'*',$string);
-						$flag = true;
-					}else{
-						$flag = false;
-					}
-				}
-			}
-			if ($flag == true){
-				return $string;	
-			}else{
-				return $original_str;
-			}	
+		public function htmlParse($string){
+			$string = htmlspecialchars($string);
+			$string = strip_tags($string);
+			$string = htmlentities($string);
+			$string = preg_replace('&#[0-9][0-9][0-9]','',$string);
+			//;
+			return $string;
 		}
+		
+		public function asciiParse($string){
+			# ascii unicode char escape
+			$string = preg_replace('0[xX][0-9a-fA-F]+','',$string); // remove anything that starts with 0x[X][0-9][a,f][A,F]
+			$string = preg_replace('%0[0-9a-fA-F]+','',$string); 	// remove special chars like %0d = carriage return
+			return $string;
+		}
+		
+		public function sqlParse($string){
+			$string = preg_replace('\/\*.*?\*\/|--.*?\n','',$string); // single and multilined comments
+			
+			if( get_magic_quotes_gpc()){
+				$string = stripslashes($string);
+			}
+			
+			if( function_exists("mysql_real_escape_string") ){
+				  $string = mysql_real_escape_string($string);
+			}
+			
+			return $string;
+		}
+		
 	}
 ?>
