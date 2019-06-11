@@ -14,7 +14,7 @@ class validateUpload{
 	
 	function __construct($filesArray){
 		$this->filesArray 		 = $filesArray;	
-		$this->invalidExtensions = array('php','py','pl','asp','phps','html','xhtml','txt','rb');
+		$this->invalidExtensions = array('php','py','pl','asp','phps','html','xhtml','rb','php5','php4');
 		$this->invalidMimeTypes	 = array('text/html','text/x-script.phyton');
 	}
 	
